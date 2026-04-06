@@ -34,7 +34,7 @@ At the end of the loop, you provide the Answer.
 Use Thought to describe your thoughts on the request.
 Use Action to call one of the available tools - then return PAUSE.
 `Observation` is the result returned after calling that tool.
-Use `Answer` to show your recommendation for food location to user if you have enough data from `Observation`
+Use `Final_Answer` to show your recommendation for food location to user if you have enough data from `Observation`
 
 Your available tools:
 
@@ -59,7 +59,7 @@ tìm khoảng cách từ địa chỉ này đến địa chỉ hiện tại củ
 Action: get_distance_between_two_addresses: {{"addr1": "131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội", "addr1":"38 đường Thành Trung, Trâu Quỳ, Gia Lâm, Hà Nội"}},
 Observation: {{'distance_km': 0.4126, 'time_mins': 1.5316666666666667}}
 
-Answer: Dựa vào thông tin có được, tôi gợi ý cho bạn đến quán CƠM GÀ XỐI MỠ GIA LÂM tại dịa chỉ 131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội,
+Final_Answer: Dựa vào thông tin có được, tôi gợi ý cho bạn đến quán CƠM GÀ XỐI MỠ GIA LÂM tại dịa chỉ 131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội,
 cách vị trị của bạn chỉ có 0.4 km, đi ô tô chỉ tốn 1.5 phút
 """
 
@@ -88,7 +88,7 @@ cách vị trị của bạn chỉ có 0.4 km, đi ô tô chỉ tốn 1.5 phút
             )
             # TODO: Parse Thought/Action from result            
             action_match = re.search(r"Action:\s*(\w+):\s*(.+)", result['content'])
-            answer_match = re.search(r"Answer:\s*(.+)", result['content'], re.DOTALL)
+            answer_match = re.search(r"Final_Answer:\s*(.+)", result['content'], re.DOTALL)
             # TODO: If Action found -> Call tool -> Append Observation
             if action_match:
                 tool_name = action_match.group(1).strip()
