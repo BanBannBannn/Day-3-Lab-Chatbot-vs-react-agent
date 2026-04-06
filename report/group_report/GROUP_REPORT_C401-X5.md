@@ -1,7 +1,7 @@
 # Group Report: Lab 3 - Production-Grade Agentic System
 
 - **Team Name**: C401-X5
-- **Team Members**: 2A202600319, 2A202600334, 2A202600446
+- **Team Members**: 2A202600319, 2A202600334, 2A202600446, 2A202600410, 2A202600301
 - **Deployment Date**: 06/04/2026
 
 ---
