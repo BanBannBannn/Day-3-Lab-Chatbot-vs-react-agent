@@ -6,9 +6,8 @@ load_dotenv()
 
 
 shop_api= os.getenv("GEOAPIFY_API_KEY")
-print("API KEY:", shop_api)
 
-def search_shop(user_location):
+def search_shop(user_location, limit: int = 3):
     headers = CaseInsensitiveDict()
     headers["Accept"] = "application/json"
 
@@ -26,7 +25,7 @@ def search_shop(user_location):
     lon = data["features"][0]["properties"]["lon"]
 
     #step 2 : search for shops near the lat and long
-    api_get_shop= f"https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=circle:{lon},{lat},1000&limit=20&apiKey={shop_api}"
+    api_get_shop= f"https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=circle:{lon},{lat},1000&limit={limit}&apiKey={shop_api}"
     resp = requests.get(api_get_shop, headers=headers)
     if resp.status_code != 200:
         return f"Error: Unable to fetch shop data for location {user_location}"
@@ -36,8 +35,8 @@ def search_shop(user_location):
     shops = []
     for feature in data["features"]:
         shop_info = {
-            "name": feature["properties"].get("name", "N/A"),
-            "address": feature["properties"].get("formatted", "N/A")
+            "shop_name": feature["properties"].get("name", "N/A"),
+            "shop_address": feature["properties"].get("formatted", "N/A")
         }
         shops.append(shop_info)
     return shops

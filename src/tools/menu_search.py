@@ -5,26 +5,24 @@ import os
 load_dotenv()
 search_engine = TavilyClient(api_key= os.getenv("TAVILY_API_KEY"))
 
-def get_menu_of_shop(shop_name: str, shop_address:str):
+def get_price_of_food(food_name: str, shop_address:str):
     r"""
-    Tìm menu của cửa hàng
+    Tìm giá tham khảo của món ăn tại khu vực
     Args:
-        shop_name: Tên cửa hàng
+        food_name: Tên món ăn muốn tìm kiếm
         shop_address: Địa chỉ của cửa hàng
     Returns:
-        List of a dictionary item of url and content
+        List of a dictionary item of reference url and content
     """
     results = search_engine.search(
-        f"Menu và giá tại {shop_name} tại địa chỉ {shop_address}",
+        f"Giá chi tiết món {food_name} tại khu vực {shop_address}",
         include_raw_content=False,
-        include_answer=False,
+        include_answer=True,
         country = "vietnam",
-        # include_domains=['https://shopeefood.vn/']
     )
 
-    
     return [{
-        "url": ele['url'],
+        "reference": ele['url'],
         "content": ele['content']
     } 
     for ele in results['results']
