@@ -27,53 +27,40 @@ class ReActAgent:
         """
         tool_descriptions = "\n".join([f"- {t['name']}: {t['description']}" for t in self.tools])
         return f"""
-You run a Thought, Action, Observation loop.
+You are an helpfull assitant in food location recommdation base on distance
+You run follow a Thought, Action, Observation loop.
 At the end of the loop, you provide the Answer.
 
 Use Thought to describe your thoughts on the request.
 Use Action to call one of the available tools - then return PAUSE.
-Observation is the result returned after calling that tool.
-Output Answer to show your recommendation for lunch to user if you have enough data from Observation
+`Observation` is the result returned after calling that tool.
+Use `Answer` to show your recommendation for food location to user if you have enough data from `Observation`
 
 Your available tools:
 
 {tool_descriptions}
 
-Example usecase:
+Example:
 
-Question: I would like to order 2 bowls of pho, delivered to 123 Le Loi Street.
-Thought: Need to check if pho is still available and get the order code.
-Action: search_shop: {{user_location: 123 Le Loi Street}}
+Question: Tôi cần order cơm gà tại khu vực Gia Lâm, tôi đang ở tại 38 đường Thành Trung, Trâu Quỳ, Gia Lâm, Hà Nội
 
+Thought: Tôi cần tìm các quán cơm gà tại khu vực Gia Lâm, Hà Nội
+Action: get_food_locations: {{"food_name": "cơm gà", "region": "Gia Lâm, Hà Nội"}}
 Observation: [
-    {{
-        "name": "Phở Bò Hồ Lợi",
-        "address": "209 An Vương, Phú Thượng, Hà Nội"
-    }},{{
-        "name": "Phở gà Phương",
-        "address": "123 P. Hàng Buồm, Hàng Buồm, Hoàn Kiếm, Hà Nội"
-    }},
-]
+    '... quán e ủng hộ nhaaaa Địa chỉ: số nhà 131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội. Log in · Quán CƠM GÀ XỐI MỠ GIA LÂM xin thông báo!!! Chính', 
+    'Địa chỉ: Số 9 ngõ 113 – Trâu Quỳ – Gia Lâm – Hà Nội Hotline: 0347528596 Dolphin Bakery – Gửi trọn yêu thương trong từng chiếc bánh.', 
+    '131 Cửu Việt 2, Thị Trấn Trâu Quỳ, Gia Lâm, Hà Nội. Mở cửa. Quán được gắn nhãn Yêu thích là Quán Yêu Thích, gồm những quán đạt chất lượng dịch vụ vượt trội', 
+    '131 Cửu Việt 2, Thị Trấn Trâu Quỳ , Huyện Gia Lâm , Hà Nội. Café/Dessert, Quán ăn. 20,000đ - 50,000đ. Thực đơn. Xem tất cả thông tin.', 
+    'Địa chỉ: Số 14 Ngách 215/11 Trâu Quỳ, TT. Trâu Quỳ, Huyện Gia Lâm, Hà Nội - Điện thoại: Đang cập nhật.']
 
-Thought: Found 2 shops which sell pho in the address, i need to find details in the menu
 
-Action: get_price_of_food: {{food_name: "Phở Bò", shop_address:"209 An Vương, Phú Thượng, Hà Nội"}},
+Thought: Tìm thấy 5 địa điểm nhưng chỉ có địa điểm tại 131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội là liên quan đến cơm gà, cần
+tìm khoảng cách từ địa chỉ này đến địa chỉ hiện tại của người dùng
+Action: get_distance_between_two_addresses: {{"addr1": "131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội", "addr1":"38 đường Thành Trung, Trâu Quỳ, Gia Lâm, Hà Nội"}},
+Observation: {{'distance_km': 0.4126, 'time_mins': 1.5316666666666667}}
 
-Observation: [
-{{
-    'reference': 'www.someurl.com', 
-    'content': 'Ở hà nội muốn ăn phở vừa ngon bổ rẻ thì đến đầu đường tam trinh phở bò tươi roi rói 30k còn phở tái chỉ có 25k 1 bát mỗi tội ngồi hơi đông.'
-    }},{{
-    'reference': 'www.example.com', 
-    'content': 'Phở Bò Gia Truyền 2 Đời Giá Chỉ Từ 35K Rất Chất Lượng Phở Bò Nguyên Ký 1009 Đường Hồng Hà. ... hà nội hay sài gòn ? 15w. Minh Quân. Hà Nội ma gia'
-}}
-]
-
-Answer: Để có thể ăn phở với vị trí gần với vị trí 123 Le Loi Street, bạn có thể tham khảo một số lựa chọn
-như sau:
-    - đường tam trinh phở bò tươi roi rói 30k còn phở tái chỉ có 25k 1 bát mỗi tội ngồi hơi đông
-    - Phở Bò Gia Truyền 2 Đời, Đường Hồng Hà, Giá Chỉ Từ 35K Chất Lượng
-
+Answer: Dựa vào thông tin có được, tôi gợi ý cho bạn đến quán CƠM GÀ XỐI MỠ GIA LÂM tại dịa chỉ 131 cửu việt 2- Trâu Quỳ- Gia Lâm- Hà Nội,
+cách vị trị của bạn chỉ có 0.4 km, đi ô tô chỉ tốn 1.5 phút
 """
 
     def run(self, user_input: str) -> str:
@@ -99,8 +86,7 @@ như sau:
                 usage=result['usage'], 
                 latency_ms=result['latency_ms']
             )
-            # TODO: Parse Thought/Action from result
-            # print(result, type(result))
+            # TODO: Parse Thought/Action from result            
             action_match = re.search(r"Action:\s*(\w+):\s*(.+)", result['content'])
             answer_match = re.search(r"Answer:\s*(.+)", result['content'], re.DOTALL)
             # TODO: If Action found -> Call tool -> Append Observation
@@ -109,18 +95,16 @@ như sau:
                 tool_input = action_match.group(2).strip()
 
                 logger.log_event("ACTION_CALL", {"tool": tool_name, "input": tool_input})
-                tool_input = json.loads(tool_input)
-
                 observation = self._execute_tool(tool_name= tool_name, args= tool_input)
                 
                 logger.log_event("OBSERVATION", {"result": observation})
 
                 # Nối Observation vào prompt để vòng sau LLM biết
                 current_prompt += f"\n{result}\nObservation: {observation}"
+            
             # TODO: If Final Answer found -> Break loop
             elif answer_match:
                 final_answer = answer_match.group(1).strip()
-                print('final_answer: ',final_answer)
                 logger.log_event("AGENT_END_WITH_ANSWER", {"steps": steps, "answer": final_answer})
                 return final_answer
 
@@ -143,8 +127,9 @@ như sau:
             if tool['name'] == tool_name:
                 # TODO: Implement dynamic function calling or simple if/else        
                 try:
+                    args = json.loads(args)
                     return tool['function'](**args)
                 except Exception as e:
-                    return f"Lỗi: Không tìm thấy tool '{tool_name}'"
+                    return f"Lỗi: run tool error'{tool_name}', error: {e}"
         
         return f"Tool {tool_name} not found."
