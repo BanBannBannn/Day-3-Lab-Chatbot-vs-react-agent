@@ -3,6 +3,8 @@ import re
 from typing import List, Dict, Any, Optional
 from src.core.llm_provider import LLMProvider
 from src.telemetry.logger import logger
+import json
+from src.telemetry.metrics import tracker
 
 class ReActAgent:
     """
@@ -10,7 +12,7 @@ class ReActAgent:
     Students should implement the core loop logic and tool execution.
     """
     
-    def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 5):
+    def __init__(self, llm: LLMProvider, tools: List[Dict[str, Any]], max_steps: int = 4):
         self.llm = llm
         self.tools = tools
         self.max_steps = max_steps
@@ -25,41 +27,52 @@ class ReActAgent:
         """
         tool_descriptions = "\n".join([f"- {t['name']}: {t['description']}" for t in self.tools])
         return f"""
-You run a Thought, Action, PAUSE, Observation loop.
+You run a Thought, Action, Observation loop.
 At the end of the loop, you provide the Answer.
 
 Use Thought to describe your thoughts on the request.
 Use Action to call one of the available tools - then return PAUSE.
 Observation is the result returned after calling that tool.
+Output Answer to show your recommendation for lunch to user if you have enough data from Observation
 
 Your available tools:
 
 {tool_descriptions}
 
-Important Note:
-- ALWAYS call get_menu() first to confirm availability.
-- ALWAYS call calculate_total() and inform the customer of the price before ordering.
-- DO NOT call place_order() if you do not have the full name, phone number, and address.
+Example usecase:
 
-Example session:
+Question: I would like to order 2 bowls of pho, delivered to 123 Le Loi Street.
+Thought: Need to check if pho is still available and get the order code.
+Action: search_shop: {{user_location: 123 Le Loi Street}}
 
-Question: I would like to order 2 bowls of beef pho, delivered to 123 Le Loi Street.
-Thought: Need to check if beef pho is still available and get the order code.
-Action: get_menu: mon_chinh
-PAUSE
+Observation: [
+    {{
+        "name": "Phở Bò Hồ Lợi",
+        "address": "209 An Vương, Phú Thượng, Hà Nội"
+    }},{{
+        "name": "Phở gà Phương",
+        "address": "123 P. Hàng Buồm, Hàng Buồm, Hoàn Kiếm, Hà Nội"
+    }},
+]
 
-Observation: [{{"id": "PHO_001", "name": "Phở bò", "price": 55000, "available": True}}]
+Thought: Found 2 shops which sell pho in the address, i need to find details in the menu
 
-Thought: Items are still available. Calculate the total for 2 bowls before ordering.
+Action: get_price_of_food: {{food_name: "Phở Bò", shop_address:"209 An Vương, Phú Thượng, Hà Nội"}},
 
-Action: calculate_total: PHO_001,2
-PAUSE
+Observation: [
+{{
+    'reference': 'www.someurl.com', 
+    'content': 'Ở hà nội muốn ăn phở vừa ngon bổ rẻ thì đến đầu đường tam trinh phở bò tươi roi rói 30k còn phở tái chỉ có 25k 1 bát mỗi tội ngồi hơi đông.'
+    }},{{
+    'reference': 'www.example.com', 
+    'content': 'Phở Bò Gia Truyền 2 Đời Giá Chỉ Từ 35K Rất Chất Lượng Phở Bò Nguyên Ký 1009 Đường Hồng Hà. ... hà nội hay sài gòn ? 15w. Minh Quân. Hà Nội ma gia'
+}}
+]
 
-Observation: {{"subtotal": 110000, "vat": 8800, "total": 118800}}
-
-Thought: Need to provide a price quote and ask for the customer's name and phone number before ordering.
-
-Answer: Pho bò x2 = 118,800 VND (including VAT). Please provide the name and phone number to confirm the order!
+Answer: Để có thể ăn phở với vị trí gần với vị trí 123 Le Loi Street, bạn có thể tham khảo một số lựa chọn
+như sau:
+    - đường tam trinh phở bò tươi roi rói 30k còn phở tái chỉ có 25k 1 bát mỗi tội ngồi hơi đông
+    - Phở Bò Gia Truyền 2 Đời, Đường Hồng Hà, Giá Chỉ Từ 35K Chất Lượng
 
 """
 
@@ -79,27 +92,27 @@ Answer: Pho bò x2 = 118,800 VND (including VAT). Please provide the name and ph
             # TODO: Generate LLM response
             result = self.llm.generate(current_prompt, system_prompt=self.get_system_prompt())
             logger.log_event("LLM_RESPONSE", {"step": steps, "response": result})
+
+            tracker.track_request(
+                model= self.llm.model_name,
+                provider = result['provider'],
+                usage=result['usage'], 
+                latency_ms=result['latency_ms']
+            )
             # TODO: Parse Thought/Action from result
-            action_match = re.search(r"Action:\s*(\w+):\s*(.+)", result)
-            answer_match = re.search(r"Answer:\s*(.+)", result, re.DOTALL)
+            # print(result, type(result))
+            action_match = re.search(r"Action:\s*(\w+):\s*(.+)", result['content'])
+            answer_match = re.search(r"Answer:\s*(.+)", result['content'], re.DOTALL)
             # TODO: If Action found -> Call tool -> Append Observation
             if action_match:
                 tool_name = action_match.group(1).strip()
                 tool_input = action_match.group(2).strip()
 
                 logger.log_event("ACTION_CALL", {"tool": tool_name, "input": tool_input})
+                tool_input = json.loads(tool_input)
 
-                # Tìm tool phù hợp trong self.tools
-                tool_fn = next(
-                    (t["function"] for t in self.tools if t["name"] == tool_name),
-                    None
-                )
-
-                if tool_fn:
-                    observation = tool_fn(tool_input)
-                else:
-                    observation = f"Lỗi: Không tìm thấy tool '{tool_name}'"
-
+                observation = self._execute_tool(tool_name= tool_name, args= tool_input)
+                
                 logger.log_event("OBSERVATION", {"result": observation})
 
                 # Nối Observation vào prompt để vòng sau LLM biết
@@ -107,7 +120,8 @@ Answer: Pho bò x2 = 118,800 VND (including VAT). Please provide the name and ph
             # TODO: If Final Answer found -> Break loop
             elif answer_match:
                 final_answer = answer_match.group(1).strip()
-                logger.log_event("AGENT_END", {"steps": steps, "answer": final_answer})
+                print('final_answer: ',final_answer)
+                logger.log_event("AGENT_END_WITH_ANSWER", {"steps": steps, "answer": final_answer})
                 return final_answer
 
             else:
@@ -121,13 +135,16 @@ Answer: Pho bò x2 = 118,800 VND (including VAT). Please provide the name and ph
         logger.log_event("AGENT_END", {"steps": steps})
         return "Not implemented. Fill in the TODOs!"
 
-    def _execute_tool(self, tool_name: str, args: str) -> str:
+    def _execute_tool(self, tool_name: str, args: Any) -> str:
         """
         Helper method to execute tools by name.
         """
         for tool in self.tools:
             if tool['name'] == tool_name:
-                # TODO: Implement dynamic function calling or simple if/else
-
-                return f"Result of {tool_name}"
+                # TODO: Implement dynamic function calling or simple if/else        
+                try:
+                    return tool['function'](**args)
+                except Exception as e:
+                    return f"Lỗi: Không tìm thấy tool '{tool_name}'"
+        
         return f"Tool {tool_name} not found."
