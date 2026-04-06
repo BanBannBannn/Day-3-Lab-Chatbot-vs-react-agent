@@ -1,23 +1,25 @@
-from src.core.gemini_provider import GeminiProvider
+from src.core.openai_provider import OpenAIProvider
 from src.agent.agent import ReActAgent
-from src.tools.menu_search import get_price_of_food
-from src.tools.shop_search import search_shop
+# from src.tools.menu_search import get_price_of_food
+# from src.tools.shop_search import search_shop
+from src.tools.get_distance import get_distance_between_two_addresses
+from src.tools.search_location import websearch_food_locations
 
 import os
 
 agent = ReActAgent(
-    llm= GeminiProvider(api_key= os.getenv("GEMINI_API_KEY")),
+    llm= OpenAIProvider(api_key= os.getenv("OPENAI_API_KEY")),
     tools= [{
-            "name": "search_shop",
-            "description": "Tìm vị trí của một cửa hàng theo địa điểm",
-            "function": search_shop
+            "name": "websearch_food_locations",
+            "description": websearch_food_locations.__doc__,
+            "function": websearch_food_locations
     },{
-            "name": "get_price_of_food",
-            "description": "tìm giá của món ăn theo địa chỉ cụ thể",
-            "function": get_price_of_food
+            "name": "get_distance_between_two_addresses",
+            "description": get_distance_between_two_addresses.__doc__,
+            "function": get_distance_between_two_addresses
     }])
 
 
 
-user_query = "I would like to order pho, delivered to 512 Le Duan Street"
+user_query = "Tôi cần tìm quán phở gần khu vực Trâu Quỳ, tôi đang ở tại 39 đường Thành Trung, Trâu Quỳ, Gia Lâm, Hà Nội"
 agent.run(user_query)
